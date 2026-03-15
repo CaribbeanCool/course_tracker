@@ -1,7 +1,5 @@
-fastapi
-uvicorn
-sqlalchemy
-pydantic
-alembic
+Flask
+flask-cors
 python-dotenv
 psycopg2-binary
+bcrypt

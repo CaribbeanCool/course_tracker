@@ -16,6 +16,21 @@ The Course Tracker is a web application built with Next.js that allows you to:
 - PostgreSQL running locally (Docker recommended)
 - Environment variables configured
 
+## Backend (Flask)
+
+This project now uses a Flask backend in `backend/`. The Next.js API routes under `/api/*` act as a thin proxy/BFF: they enforce the NextAuth session and forward requests to Flask.
+
+### Run the backend
+
+From the repo root:
+
+```bash
+pip install -r backend/requirements.txt
+python backend/flask_server.py
+```
+
+By default the backend listens on `http://localhost:8081`.
+
 ## Database Setup
 
 ### 1. Start PostgreSQL (Docker)
@@ -56,6 +71,8 @@ This reads `scripts/seed-data.json` and populates your courses.
 Add these to your `.env.local` file:
 
 ```
+BACKEND_URL=http://localhost:8081
+
 DB_TARGET=dev
 DB_HOST=localhost
 DB_PORT=5432

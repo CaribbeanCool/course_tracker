@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { signInWithCredentials } from "@/lib/api-client";
 
 function normalizeCallbackUrl(value: string | undefined): string {
   if (!value) return "/";
@@ -25,20 +25,14 @@ export default function SignInForm({ callbackUrl }: { callbackUrl?: string }) {
 
     const safeCallbackUrl = normalizeCallbackUrl(callbackUrl);
 
-    const res = await signIn("credentials", {
-      redirect: false,
-      username,
-      password,
-      callbackUrl: safeCallbackUrl,
-    } as any);
-
-    setLoading(false);
-    if (res && (res as any).error) {
-      setError((res as any).error);
-      return;
+    try {
+      await signInWithCredentials(username, password);
+      router.replace(safeCallbackUrl);
+    } catch (err: any) {
+      setError(err?.message || "Sign in failed");
+    } finally {
+      setLoading(false);
     }
-
-    router.replace(safeCallbackUrl);
   }
 
   return (

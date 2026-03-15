@@ -22,8 +22,16 @@ import type { Course, CourseStats } from "@/types/course";
 import { Moon, Plus, Sun } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useTheme } from "next-themes";
+import { apiFetch, apiUrl, getStoredUser } from "@/lib/api-client";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+const fetcher = async (url: string) => {
+  const user = getStoredUser();
+  const res = await fetch(url, {
+    headers: user ? { "X-User-Id": String(user.id) } : undefined,
+  });
+  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+  return res.json();
+};
 
 function sortSemesters(semesters: string[]): string[] {
   const collator = new Intl.Collator("es", {
@@ -90,12 +98,15 @@ export function CourseDashboard() {
     setMounted(true);
   }, []);
 
+  const coursesKey = apiUrl("/api/courses?groupBy=semester");
+  const statsKey = apiUrl("/api/courses?stats=true");
+
   const { data: coursesBySemester, isLoading: isLoadingCourses } = useSWR<
     Record<string, Course[]>
-  >("/api/courses?groupBy=semester", fetcher);
+  >(coursesKey, fetcher);
 
   const { data: stats, isLoading: isLoadingStats } = useSWR<CourseStats>(
-    "/api/courses?stats=true",
+    statsKey,
     fetcher,
   );
 
@@ -118,11 +129,11 @@ export function CourseDashboard() {
     if (!deletingCourse) return;
 
     try {
-      await fetch(`/api/courses/${deletingCourse.id}`, {
+      await apiFetch(`/api/courses/${deletingCourse.id}`, {
         method: "DELETE",
       });
-      mutate("/api/courses?groupBy=semester");
-      mutate("/api/courses?stats=true");
+      mutate(coursesKey);
+      mutate(statsKey);
     } finally {
       setDeletingCourse(null);
     }
@@ -131,13 +142,13 @@ export function CourseDashboard() {
   const handleSave = async (
     courseData: Partial<Course> & { id: number },
   ): Promise<void> => {
-    await fetch(`/api/courses/${courseData.id}`, {
+    await apiFetch(`/api/courses/${courseData.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(courseData),
     });
-    mutate("/api/courses?groupBy=semester");
-    mutate("/api/courses?stats=true");
+    mutate(coursesKey);
+    mutate(statsKey);
   };
 
   const handleAdd = async (courseData: {
@@ -147,13 +158,13 @@ export function CourseDashboard() {
     hp: number;
     session: string;
   }): Promise<void> => {
-    await fetch("/api/courses", {
+    await apiFetch("/api/courses", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(courseData),
     });
-    mutate("/api/courses?groupBy=semester");
-    mutate("/api/courses?stats=true");
+    mutate(coursesKey);
+    mutate(statsKey);
   };
 
   const defaultTab =

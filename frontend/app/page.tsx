@@ -1,15 +1,22 @@
+"use client";
+
 import { CourseDashboard } from "@/components/course-dashboard";
 import { SignOutButton } from "@/components/sign-out-button";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import { redirect } from "next/navigation";
-import type { Session } from "next-auth";
+import { getStoredUser } from "@/lib/api-client";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export default async function Home() {
-  const session = (await getServerSession(
-    authOptions as any,
-  )) as Session | null;
-  if (!session) return redirect("/signin");
+export default function Home() {
+  const router = useRouter();
+  const [user, setUser] = useState(() => getStoredUser());
+
+  useEffect(() => {
+    const current = getStoredUser();
+    if (!current) router.replace("/signin");
+    setUser(current);
+  }, [router]);
+
+  if (!user) return null;
 
   return (
     <main className="min-h-screen bg-background">
@@ -27,7 +34,7 @@ export default async function Home() {
 
           <div className="flex items-center gap-3">
             <div className="hidden text-sm text-muted-foreground sm:block">
-              Signed in as {session.user?.name ?? "User"}
+              Signed in as {user.username}
             </div>
             <SignOutButton />
           </div>
