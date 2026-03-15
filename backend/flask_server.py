@@ -397,7 +397,14 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    host = (os.getenv("FLASK_HOST") or "127.0.0.1").strip()
-    # port = int((os.getenv("FLASK_PORT") or "8081").strip())
+    railway_port = (os.getenv("PORT") or "").strip()
+
+    host = (os.getenv("FLASK_HOST") or "").strip() or "127.0.0.1"
+    if railway_port and not (os.getenv("FLASK_HOST") or "").strip():
+        host = "0.0.0.0"
+
+    port_raw = railway_port or (os.getenv("FLASK_PORT") or "").strip() or "3010"
+    port = int(port_raw)
+
     debug = (os.getenv("FLASK_DEBUG") or "").strip().lower() in {"1", "true", "yes"}
-    app.run(host=host, port=3010, debug=debug)
+    app.run(host=host, port=port, debug=debug)
