@@ -3,6 +3,9 @@ import { NextAuthOptions } from "next-auth";
 import { verifyUserCredentials } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
+  pages: {
+    signIn: "/signin",
+  },
   providers: [
     CredentialsProvider({
       name: "Credentials",
