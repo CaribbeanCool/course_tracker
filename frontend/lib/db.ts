@@ -1,4 +1,5 @@
 import { Pool } from "pg";
+import bcrypt from "bcryptjs";
 
 type DbTarget = "dev" | "prod";
 
@@ -714,8 +715,22 @@ export interface CourseInput {
   session: string;
 }
 
-export async function getAllCourses(): Promise<Course[]> {
+export interface User {
+  id: number;
+  username: string;
+  password_hash: string;
+  created_at: Date;
+}
+
+export async function getAllCourses(userId?: number): Promise<Course[]> {
   try {
+    if (userId !== undefined) {
+      const result = await pool.query<Course>(
+        "SELECT * FROM courses WHERE user_id = $1 ORDER BY session, name",
+        [userId],
+      );
+      return result.rows;
+    }
     const result = await pool.query<Course>(
       "SELECT * FROM courses ORDER BY session, name",
     );
@@ -729,8 +744,19 @@ export async function getAllCourses(): Promise<Course[]> {
   }
 }
 
-export async function getCourseById(id: number): Promise<Course | null> {
+export async function getCourseById(
+  id: number,
+  userId?: number,
+): Promise<Course | null> {
   try {
+    if (userId !== undefined) {
+      const result = await pool.query<Course>(
+        "SELECT * FROM courses WHERE id = $1 AND user_id = $2",
+        [id, userId],
+      );
+      return result.rows[0] || null;
+    }
+
     const result = await pool.query<Course>(
       "SELECT * FROM courses WHERE id = $1",
       [id],
@@ -742,10 +768,10 @@ export async function getCourseById(id: number): Promise<Course | null> {
   }
 }
 
-export async function getCoursesBySemester(): Promise<
-  Record<string, Course[]>
-> {
-  const courses = await getAllCourses();
+export async function getCoursesBySemester(
+  userId?: number,
+): Promise<Record<string, Course[]>> {
+  const courses = await getAllCourses(userId);
   const grouped: Record<string, Course[]> = {};
 
   for (const course of courses) {
@@ -758,8 +784,28 @@ export async function getCoursesBySemester(): Promise<
   return grouped;
 }
 
-export async function createCourse(input: CourseInput): Promise<Course> {
+export async function createCourse(
+  input: CourseInput,
+  userId?: number,
+): Promise<Course> {
   try {
+    if (userId !== undefined) {
+      const result = await pool.query<Course>(
+        `INSERT INTO courses (name, credits, grade, hp, session, user_id) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING *`,
+        [
+          input.name,
+          input.credits,
+          input.grade || "",
+          input.hp || 0,
+          input.session,
+          userId,
+        ],
+      );
+      return result.rows[0];
+    }
+
     const result = await pool.query<Course>(
       `INSERT INTO courses (name, credits, grade, hp, session) 
        VALUES ($1, $2, $3, $4, $5) 
@@ -793,6 +839,7 @@ export async function createCourse(input: CourseInput): Promise<Course> {
 export async function updateCourse(
   id: number,
   input: Partial<CourseInput>,
+  userId?: number,
 ): Promise<Course | null> {
   const fields: string[] = [];
   const values: (string | number | null)[] = [];
@@ -820,12 +867,21 @@ export async function updateCourse(
   }
 
   if (fields.length === 0) {
-    return getCourseById(id);
+    return getCourseById(id, userId);
   }
 
   values.push(id);
 
   try {
+    if (userId !== undefined) {
+      values.push(userId);
+      const result = await pool.query<Course>(
+        `UPDATE courses SET ${fields.join(", ")} WHERE id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING *`,
+        values,
+      );
+      return result.rows[0] || null;
+    }
+
     const result = await pool.query<Course>(
       `UPDATE courses SET ${fields.join(", ")} WHERE id = $${paramIndex} RETURNING *`,
       values,
@@ -848,8 +904,19 @@ export async function updateCourse(
   }
 }
 
-export async function deleteCourse(id: number): Promise<boolean> {
+export async function deleteCourse(
+  id: number,
+  userId?: number,
+): Promise<boolean> {
   try {
+    if (userId !== undefined) {
+      const result = await pool.query(
+        "DELETE FROM courses WHERE id = $1 AND user_id = $2",
+        [id, userId],
+      );
+      return (result.rowCount ?? 0) > 0;
+    }
+
     const result = await pool.query("DELETE FROM courses WHERE id = $1", [id]);
     return (result.rowCount ?? 0) > 0;
   } catch {
@@ -870,8 +937,8 @@ export interface CourseStats {
   missingCourses: number;
 }
 
-export async function getCourseStats(): Promise<CourseStats> {
-  const courses = await getAllCourses();
+export async function getCourseStats(userId?: number): Promise<CourseStats> {
+  const courses = await getAllCourses(userId);
 
   let totalCredits = 0;
   let totalHp = 0;
@@ -910,6 +977,48 @@ export async function getCourseStats(): Promise<CourseStats> {
     inProgressCourses,
     missingCourses,
   };
+}
+
+// -- User helpers
+export async function getUserByUsername(
+  username: string,
+): Promise<User | null> {
+  try {
+    const result = await pool.query<User>(
+      "SELECT * FROM users WHERE username = $1",
+      [username],
+    );
+    return result.rows[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createUser(
+  username: string,
+  password: string,
+): Promise<User> {
+  const hash = await bcrypt.hash(password, 10);
+  try {
+    const result = await pool.query<User>(
+      `INSERT INTO users (username, password_hash) VALUES ($1, $2) RETURNING *`,
+      [username, hash],
+    );
+    return result.rows[0];
+  } catch (err) {
+    throw err;
+  }
+}
+
+export async function verifyUserCredentials(
+  username: string,
+  password: string,
+): Promise<{ id: number; username: string } | null> {
+  const user = await getUserByUsername(username);
+  if (!user) return null;
+  const ok = await bcrypt.compare(password, user.password_hash);
+  if (!ok) return null;
+  return { id: user.id, username: user.username };
 }
 
 export default pool;

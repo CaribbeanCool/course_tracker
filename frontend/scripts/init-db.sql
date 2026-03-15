@@ -1,5 +1,12 @@
 -- Database schema for course tracker
--- Apply with: psql -h localhost -U <user> -d <db> -f scripts/init-db.sql
+
+-- Users table for authentication (simple username/password)
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE TABLE IF NOT EXISTS courses (
     id BIGSERIAL PRIMARY KEY,
@@ -8,6 +15,7 @@ CREATE TABLE IF NOT EXISTS courses (
     grade TEXT NOT NULL DEFAULT '',
     hp INTEGER NOT NULL DEFAULT 0,
     session TEXT NOT NULL,
+    user_id BIGINT REFERENCES users (id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

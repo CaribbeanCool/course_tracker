@@ -221,7 +221,7 @@ def upsert_courses(conn, courses: List[Dict[str, Any]]) -> Tuple[int, int]:
 
     with conn.cursor() as cur:
         if rows_normal:
-            # Matches the partial unique index in schema.sql.
+            # Matches the partial unique index in the schema.
             upsert_stmt = sql.SQL(
                 """
                 INSERT INTO {table} (name, credits, grade, hp, session)
@@ -247,6 +247,15 @@ def upsert_courses(conn, courses: List[Dict[str, Any]]) -> Tuple[int, int]:
             execute_values(
                 cur, insert_stmt.as_string(conn), rows_wildcard, page_size=200
             )
+
+        # Add 1 to `user_id` for every row in the table.
+        # This intentionally increments user_id across all rows after the upsert.
+        # Increment user_id for every row; handle NULLs by treating them as 0.
+        cur.execute(
+            sql.SQL("UPDATE {table} SET user_id = COALESCE(user_id, 0) + 1").format(
+                table=sql.Identifier(TABLE_NAME)
+            )
+        )
 
     skipped = len(courses) - len(valid_courses)
     return len(valid_courses), skipped

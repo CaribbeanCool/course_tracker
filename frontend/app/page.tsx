@@ -1,6 +1,12 @@
 import { CourseDashboard } from "@/components/course-dashboard";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function Home() {
+export default async function Home() {
+  const session = await getServerSession(authOptions as any);
+  if (!session) return redirect("/signin");
+
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">

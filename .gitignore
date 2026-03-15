@@ -31,3 +31,5 @@ build/
 *.tsbuildinfo
 
 .vscode/*
+
+*/*.sql
