@@ -46,6 +46,7 @@ def _resolve_db_conn_args() -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
 
     host = _first(
         f"DB_HOST_{suffix}",
+        "DB_HOST",
         "HOST",
         "POSTGRES_HOST",
         default="localhost",
@@ -53,7 +54,7 @@ def _resolve_db_conn_args() -> Tuple[Tuple[Any, ...], Dict[str, Any]]:
     port = int(
         _first(
             f"DB_PORT_{suffix}",
-            "PORT",
+            "DB_PORT",
             "POSTGRES_PORT",
             default="5432",
         )
