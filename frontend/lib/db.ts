@@ -145,9 +145,32 @@ async function checkConnection(): Promise<boolean> {
   }
 }
 
-// Initialize connection check
-checkConnection();
+// Initialize connection check (optional):
+// - The module will perform a background connection check only when a
+//   connection string (`DATABASE_URL*`) or `DB_HOST` is present.
+// - For deterministic startup behavior (and to avoid side-effects at import
+//   time), prefer calling `initDb()` from your server bootstrap code.
+export async function initDb(): Promise<boolean> {
+  if (!databaseUrl && !process.env.DB_HOST) return false;
+  return checkConnection();
+}
 
+/**
+ * Backward-compat guard: perform a non-blocking check during import only when
+ * a connection is configured. This keeps local dev fast while avoiding a
+ * needless connection attempt in environments with no DB configured.
+ */
+if (databaseUrl || process.env.DB_HOST) {
+  void checkConnection();
+}
+
+/**
+ * Return whether the module is running in demo (mock) mode due to a failed
+ * database connection. Other modules can use this to alter behavior/UI.
+ */
+export function isDemoModeEnabled(): boolean {
+  return isDemoMode;
+}
 // Mock data for demo mode when database is unavailable
 const mockCourses: Course[] = [
   {
